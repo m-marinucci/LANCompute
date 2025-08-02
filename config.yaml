@@ -1,0 +1,259 @@
+# LANCompute Configuration File
+# This file contains configuration settings for the distributed compute system
+
+# Master Service Configuration
+master:
+  # Host and port for the master service
+  host: "0.0.0.0"
+  port: 8080
+  
+  # Task queue settings
+  task_queue:
+    # Maximum number of pending tasks
+    max_pending_tasks: 10000
+    # Task timeout in seconds (0 = no timeout)
+    task_timeout: 3600
+    # Priority levels (higher number = higher priority)
+    priority_levels:
+      critical: 100
+      high: 50
+      normal: 10
+      low: 1
+  
+  # Node management settings
+  node_manager:
+    # Heartbeat timeout in seconds
+    heartbeat_timeout: 30
+    # Maximum failed heartbeats before marking node offline
+    max_failed_heartbeats: 3
+    # Node capacity multiplier for oversubscription
+    oversubscription_factor: 1.2
+  
+  # Scheduler settings
+  scheduler:
+    # Scheduling algorithm: "priority", "round_robin", "least_loaded"
+    algorithm: "priority"
+    # Rebalance interval in seconds
+    rebalance_interval: 60
+    # Enable predictive scheduling based on historical data
+    predictive_scheduling: true
+
+# Worker Service Configuration
+worker:
+  # Heartbeat interval in seconds
+  heartbeat_interval: 10
+  
+  # Maximum concurrent tasks per worker
+  max_concurrent_tasks: 2
+  
+  # Executor configuration
+  executor:
+    # Type: "thread" or "process"
+    type: "thread"
+    # Maximum worker threads/processes (null = auto-detect)
+    max_workers: null
+    # Task execution timeout in seconds
+    task_timeout: 3600
+  
+  # Resource limits
+  resources:
+    # Maximum memory usage percentage
+    max_memory_percent: 80
+    # Maximum CPU usage percentage
+    max_cpu_percent: 90
+    # Reserved memory in GB
+    reserved_memory_gb: 2
+  
+  # Platform-specific settings
+  platform:
+    # macOS settings
+    macos:
+      # Prefer efficiency cores for background tasks
+      use_efficiency_cores: true
+      # Enable Metal compute shaders
+      enable_metal: true
+      # Unified memory optimization
+      unified_memory_optimization: true
+    
+    # Linux settings
+    linux:
+      # Enable cgroups for resource isolation
+      use_cgroups: false
+      # NUMA awareness
+      numa_aware: true
+    
+    # Windows settings
+    windows:
+      # Process priority class
+      priority_class: "normal"
+
+# Network Configuration
+network:
+  # Service discovery method: "mdns", "static", "consul"
+  discovery_method: "mdns"
+  
+  # mDNS settings
+  mdns:
+    # Service name
+    service_name: "_lancompute._tcp.local."
+    # Discovery timeout in seconds
+    discovery_timeout: 5
+  
+  # Static node list (used if discovery_method is "static")
+  static_nodes:
+    # - address: "192.168.1.100"
+    #   port: 8080
+    # - address: "192.168.1.101"
+    #   port: 8080
+  
+  # Communication settings
+  communication:
+    # Connection timeout in seconds
+    connection_timeout: 5
+    # Request timeout in seconds
+    request_timeout: 30
+    # Enable compression for large payloads
+    enable_compression: true
+    # Compression threshold in bytes
+    compression_threshold: 1024
+
+# Security Configuration
+security:
+  # Enable TLS for communication
+  enable_tls: false
+  
+  # TLS settings
+  tls:
+    # Certificate file path
+    cert_file: "/path/to/cert.pem"
+    # Key file path
+    key_file: "/path/to/key.pem"
+    # CA certificate file path
+    ca_file: "/path/to/ca.pem"
+    # Verify client certificates
+    verify_client: true
+  
+  # Authentication method: "none", "token", "mtls"
+  auth_method: "none"
+  
+  # Token authentication settings
+  token:
+    # Shared secret for token generation
+    secret: "change-this-secret"
+    # Token expiration in seconds
+    expiration: 3600
+
+# Monitoring Configuration
+monitoring:
+  # Enable metrics collection
+  enable_metrics: true
+  
+  # Metrics export
+  metrics:
+    # Export format: "prometheus", "json", "csv"
+    format: "prometheus"
+    # Export interval in seconds
+    export_interval: 60
+    # Metrics endpoint port
+    port: 9090
+  
+  # Logging settings
+  logging:
+    # Log level: "DEBUG", "INFO", "WARNING", "ERROR"
+    level: "INFO"
+    # Log file path (null = stdout only)
+    file: null
+    # Maximum log file size in MB
+    max_size_mb: 100
+    # Number of backup files to keep
+    backup_count: 5
+  
+  # Tracing settings
+  tracing:
+    # Enable distributed tracing
+    enabled: false
+    # Tracing backend: "jaeger", "zipkin"
+    backend: "jaeger"
+    # Sampling rate (0.0 - 1.0)
+    sampling_rate: 0.1
+
+# Storage Configuration
+storage:
+  # Result storage backend: "memory", "file", "s3", "redis"
+  backend: "file"
+  
+  # File storage settings
+  file:
+    # Base directory for storing results
+    base_dir: "./results"
+    # Result retention in days
+    retention_days: 7
+    # Maximum storage size in GB
+    max_size_gb: 100
+  
+  # Redis settings (if backend is "redis")
+  redis:
+    # Redis connection URL
+    url: "redis://localhost:6379"
+    # Key prefix
+    prefix: "lancompute:"
+    # TTL for results in seconds
+    ttl: 86400
+
+# Task Types Configuration
+task_types:
+  # Compute tasks
+  compute:
+    # Default priority
+    priority: 10
+    # Resource requirements
+    requirements:
+      min_memory_gb: 1
+      min_cpu_cores: 1
+    # Timeout in seconds
+    timeout: 3600
+  
+  # Data processing tasks
+  data_processing:
+    priority: 5
+    requirements:
+      min_memory_gb: 2
+      min_cpu_cores: 2
+    timeout: 7200
+  
+  # ML inference tasks
+  ml_inference:
+    priority: 20
+    requirements:
+      min_memory_gb: 4
+      gpu_required: false
+      metal_support: true
+    timeout: 1800
+  
+  # Custom task types can be added here
+  # custom_type:
+  #   priority: 15
+  #   requirements:
+  #     custom_requirement: "value"
+  #   timeout: 3600
+
+# Development Configuration
+development:
+  # Enable debug mode
+  debug: false
+  
+  # Test mode settings
+  test_mode:
+    # Enable test mode
+    enabled: false
+    # Simulate node failures
+    simulate_failures: false
+    # Failure rate (0.0 - 1.0)
+    failure_rate: 0.1
+  
+  # Performance profiling
+  profiling:
+    # Enable profiling
+    enabled: false
+    # Profile output directory
+    output_dir: "./profiles"
