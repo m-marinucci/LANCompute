@@ -37,13 +37,15 @@ class MacOptimizer:
         """Check if running on Apple Silicon"""
         if platform.system() != 'Darwin':
             return False
-        
-        # Check processor type
-        processor = platform.processor()
-        if 'arm' in processor.lower():
+
+        # Check architecture first (most reliable)
+        architecture = platform.machine()
+        if architecture == 'arm64':
             return True
-        
-        # Alternative check using sysctl
+        if architecture in ('x86_64', 'i386'):
+            return False
+
+        # Fallback check using sysctl (more reliable than processor string)
         try:
             result = subprocess.run(
                 ['sysctl', '-n', 'hw.optional.arm64'],
