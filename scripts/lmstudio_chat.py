@@ -11,8 +11,9 @@ Usage examples:
         --model mistral:latest \
         --prompt "Give me one fun fact."
 
-Environment:
-  LM_STUDIO_BASE_URL  Base URL to the API (default: http://192.168.1.138:1234)
+Configuration:
+  - Reads environment variables, and if present a local `.env` file.
+  - LM_STUDIO_BASE_URL  Base URL to the API (default: http://127.0.0.1:1234)
 """
 from __future__ import annotations
 
@@ -20,12 +21,30 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 from typing import Any, Dict
 
 import requests
 
 
-DEFAULT_BASE_URL = os.environ.get("LM_STUDIO_BASE_URL", "http://192.168.1.138:1234")
+def _load_dotenv() -> None:
+    """Populate os.environ from a local .env file if available (no extra deps)."""
+    env_path = Path(".env")
+    if not env_path.exists():
+        return
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        key, val = key.strip(), val.strip()
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+
+_load_dotenv()
+
+DEFAULT_BASE_URL = os.environ.get("LM_STUDIO_BASE_URL", "http://127.0.0.1:1234")
 
 
 def list_models(base_url: str) -> int:
@@ -142,4 +161,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

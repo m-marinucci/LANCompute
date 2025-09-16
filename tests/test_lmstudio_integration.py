@@ -2,12 +2,35 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Iterable, Optional
 
 import pytest
 import requests
 
-BASE_URL = os.environ.get("LM_STUDIO_BASE_URL", "http://192.168.1.138:1234")
+def _load_dotenv_into_environ() -> None:
+    """Load simple KEY=VALUE pairs from project .env into os.environ if present.
+
+    Keeps things dependency-free (no python-dotenv) and only sets keys that
+    are not already defined in the environment.
+    """
+    # repo root assumed to be one directory up from tests/
+    env_path = (Path(__file__).resolve().parent.parent / ".env").resolve()
+    if not env_path.exists():
+        return
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        k, v = k.strip(), v.strip()
+        if k and k not in os.environ:
+            os.environ[k] = v
+
+
+_load_dotenv_into_environ()
+
+BASE_URL = os.environ.get("LM_STUDIO_BASE_URL", "http://127.0.0.1:1234")
 SMALL_MODEL_OVERRIDE = os.environ.get("LM_STUDIO_TEST_MODEL")
 PROMPT = os.environ.get(
     "LM_STUDIO_TEST_PROMPT",
