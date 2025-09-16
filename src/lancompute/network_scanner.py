@@ -5,6 +5,7 @@ Scans for common ports used by LMStudio and similar services.
 """
 
 import socket
+import logging
 import subprocess
 import sys
 import threading
@@ -12,6 +13,9 @@ import ipaddress
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import argparse
 import platform
+
+# Common HTTP-like ports where a simple GET may elicit a banner
+HTTP_PORTS = [1234, 8080, 5000, 8000, 3000]
 
 def get_local_network():
     """Get the local network subnet."""
@@ -22,8 +26,11 @@ def get_local_network():
         
         # For macOS/Linux, get more accurate network info
         if platform.system() != "Windows":
-            cmd = "ifconfig" if platform.system() == "Darwin" else "ip addr"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if platform.system() == "Darwin":
+                cmd = ["ifconfig"]
+            else:
+                cmd = ["ip", "addr"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
             
             # Simple heuristic: find IP that starts with common private ranges
             for line in result.stdout.split('\n'):
@@ -36,7 +43,7 @@ def get_local_network():
                                 if ip.startswith(('192.168.', '10.', '172.')):
                                     local_ip = ip
                                     break
-                            except:
+                            except Exception:
                                 continue
         
         # Convert to network subnet
@@ -44,7 +51,7 @@ def get_local_network():
         network = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"
         return network
     except Exception as e:
-        print(f"Error detecting network: {e}")
+        logging.warning("Error detecting network: %s", e)
         return "192.168.1.0/24"  # Default fallback
 
 def ping_host(ip):
@@ -54,19 +61,32 @@ def ping_host(ip):
         command = ['ping', param, '1', '-W', '1', str(ip)]
         result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return result.returncode == 0
-    except:
+    except Exception:
         return False
 
 def scan_port(ip, port, timeout=1):
-    """Check if a specific port is open on a host."""
+    """Check if a specific port is open on a host and return banner if available."""
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
-        result = sock.connect_ex((str(ip), port))
-        sock.close()
-        return result == 0
-    except:
-        return False
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout)
+            result = sock.connect_ex((str(ip), port))
+
+            if result == 0:
+                # Port is open, try to get banner
+                try:
+                    # Send HTTP request for common web services
+                    if port in HTTP_PORTS:
+                        sock.send(b"GET / HTTP/1.0\r\n\r\n")
+                    banner = sock.recv(1024).decode('utf-8', errors='ignore').strip()
+                    return banner if banner else "Open"
+                except Exception as e:
+                    logging.debug("Banner read failed for %s:%s: %s", ip, port, e)
+                    return "Open"
+            else:
+                return None
+    except Exception as e:
+        logging.debug("scan_port exception for %s:%s: %s", ip, port, e)
+        return None
 
 def get_service_banner(ip, port, timeout=2):
     """Try to get service banner from open port."""
@@ -76,7 +96,7 @@ def get_service_banner(ip, port, timeout=2):
         sock.connect((str(ip), port))
         
         # Send HTTP request for common web services
-        if port in [1234, 8080, 5000, 8000, 3000]:
+        if port in HTTP_PORTS:
             sock.send(b"GET / HTTP/1.0\r\n\r\n")
             banner = sock.recv(1024).decode('utf-8', errors='ignore')
         else:
@@ -84,7 +104,8 @@ def get_service_banner(ip, port, timeout=2):
         
         sock.close()
         return banner.strip()
-    except:
+    except Exception as e:
+        logging.debug("get_service_banner exception for %s:%s: %s", ip, port, e)
         return ""
 
 def scan_host(ip, ports):
@@ -102,13 +123,18 @@ def scan_host(ip, ports):
         
         # Scan specified ports
         for port in ports:
-            if scan_port(ip, port):
+            result = scan_port(ip, port)
+            if result:  # Port is open (returns banner string or "Open")
                 host_info['open_ports'].append(port)
-                
-                # Try to get service banner
-                banner = get_service_banner(ip, port)
-                if banner:
-                    host_info['services'][port] = banner[:100]  # Limit banner length
+
+                # Use the banner from scan_port if available
+                if isinstance(result, str) and result != "Open":
+                    host_info['services'][port] = result[:100]  # Limit banner length
+                else:
+                    # Try to get service banner using the old method as fallback
+                    banner = get_service_banner(ip, port)
+                    if banner:
+                        host_info['services'][port] = banner[:100]
     
     return host_info
 
