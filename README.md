@@ -193,14 +193,23 @@ print(f"Task summary: {status_counts}")
 
 This repo includes a minimal, OpenAI-compatible integration to exercise a local LLM server (LM Studio API server or Ollama) for quick checks and CI smoketests.
 
-### Setup
+### Setup (using uv)
 
-- Create and activate a virtualenv (optional but recommended):
+- Install `uv` (fast Python package manager and toolchain):
 
   ```bash
-  python -m venv .venv
-  source .venv/bin/activate
-  pip install -U pip requests pytest
+  # macOS (Homebrew)
+  brew install uv
+  # or via install script
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
+
+- Create a virtualenv and install deps:
+
+  ```bash
+  uv venv
+  . .venv/bin/activate
+  uv pip install -U requests pytest
   ```
 
 - Optionally use `direnv` to auto-activate the venv and load `.env`:
@@ -223,16 +232,18 @@ This repo includes a minimal, OpenAI-compatible integration to exercise a local 
 - List models:
 
   ```bash
-  python scripts/lmstudio_chat.py --list-models
-  # or
+  # using uv directly
+  uv run --with requests scripts/lmstudio_chat.py --list-models
+  # or via Makefile
   make models
   ```
 
 - Send a quick prompt:
 
   ```bash
-  python scripts/lmstudio_chat.py --model mistral:latest --prompt "Give me one fun fact."
-  # or
+  # using uv directly
+  uv run --with requests scripts/lmstudio_chat.py --model mistral:latest --prompt "Give me one fun fact."
+  # or via Makefile
   make chat MODEL=mistral:latest PROMPT="Give me one fun fact."
   ```
 
