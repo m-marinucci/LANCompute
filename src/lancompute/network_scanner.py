@@ -91,19 +91,18 @@ def scan_port(ip, port, timeout=1):
 def get_service_banner(ip, port, timeout=2):
     """Try to get service banner from open port."""
     try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
-        sock.connect((str(ip), port))
-        
-        # Send HTTP request for common web services
-        if port in HTTP_PORTS:
-            sock.send(b"GET / HTTP/1.0\r\n\r\n")
-            banner = sock.recv(1024).decode('utf-8', errors='ignore')
-        else:
-            banner = sock.recv(1024).decode('utf-8', errors='ignore')
-        
-        sock.close()
-        return banner.strip()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout)
+            sock.connect((str(ip), port))
+
+            # Send HTTP request for common web services
+            if port in HTTP_PORTS:
+                sock.send(b"GET / HTTP/1.0\r\n\r\n")
+                banner = sock.recv(1024).decode('utf-8', errors='ignore')
+            else:
+                banner = sock.recv(1024).decode('utf-8', errors='ignore')
+
+            return banner.strip()
     except Exception as e:
         logging.debug("get_service_banner exception for %s:%s: %s", ip, port, e)
         return ""
@@ -130,11 +129,8 @@ def scan_host(ip, ports):
                 # Use the banner from scan_port if available
                 if isinstance(result, str) and result != "Open":
                     host_info['services'][port] = result[:100]  # Limit banner length
-                else:
-                    # Try to get service banner using the old method as fallback
-                    banner = get_service_banner(ip, port)
-                    if banner:
-                        host_info['services'][port] = banner[:100]
+                # If result is just "Open", banner retrieval already attempted in scan_port
+                # No need for redundant connection
     
     return host_info
 
@@ -158,8 +154,12 @@ def main():
     
     # Add custom ports if specified
     if args.ports:
-        custom_ports = [int(p.strip()) for p in args.ports.split(',') if p.strip().isdigit()]
-        default_ports.extend(custom_ports)
+        try:
+            custom_ports = [int(p.strip()) for p in args.ports.split(',') if p.strip().isdigit()]
+            default_ports.extend(custom_ports)
+        except ValueError as e:
+            print(f"Error parsing custom ports: {e}")
+            sys.exit(1)
     
     ports = list(set(default_ports))  # Remove duplicates
     

@@ -25,7 +25,7 @@ import importlib.util
 # Try to import mac_optimizer if on macOS
 if platform.system() == 'Darwin':
     try:
-        from mac_optimizer import MacOptimizer
+        from .mac_optimizer import MacOptimizer
     except ImportError:
         MacOptimizer = None
 else:
@@ -112,16 +112,16 @@ class PlatformDetector:
         try:
             subprocess.run(['nvidia-smi'], capture_output=True, check=True)
             return True
-        except:
+        except (subprocess.SubprocessError, OSError, FileNotFoundError):
             pass
-        
+
         # Check for AMD GPU (Linux)
         if platform.system() == 'Linux':
             try:
                 result = subprocess.run(['lspci'], capture_output=True, text=True)
                 if 'VGA' in result.stdout and ('AMD' in result.stdout or 'ATI' in result.stdout):
                     return True
-            except:
+            except (subprocess.SubprocessError, OSError, FileNotFoundError):
                 pass
         
         return False
@@ -162,34 +162,36 @@ class TaskExecutor:
     def execute_task(self, task: Dict[str, Any]) -> None:
         """Execute a task asynchronously"""
         task_id = task['id']
-        
+        start_time = time.time()
+
         with self.lock:
             if task_id in self.running_tasks:
                 logger.warning(f"Task {task_id} already running")
                 return
-            
+
             self.running_tasks[task_id] = {
                 'task': task,
                 'future': None,
-                'start_time': time.time()
+                'start_time': start_time
             }
-        
+
         # Submit task to executor
-        future = self.executor.submit(self._run_task, task)
-        
+        future = self.executor.submit(self._run_task, task, start_time)
+
         with self.lock:
-            self.running_tasks[task_id]['future'] = future
-        
+            if task_id in self.running_tasks:  # Check still exists
+                self.running_tasks[task_id]['future'] = future
+
         # Add callback for completion
         future.add_done_callback(lambda f: self._task_completed(task_id, f))
     
-    def _run_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
+    def _run_task(self, task: Dict[str, Any], start_time: float) -> Dict[str, Any]:
         """Run a single task"""
         task_type = task.get('type', 'unknown')
         payload = task.get('payload', {})
-        
+
         logger.info(f"Executing task {task['id']} of type {task_type}")
-        
+
         try:
             # Route to appropriate handler based on task type
             if task_type == 'compute':
@@ -202,19 +204,19 @@ class TaskExecutor:
                 result = self._handle_test_task(payload)
             else:
                 raise ValueError(f"Unknown task type: {task_type}")
-            
+
             return {
                 'status': 'completed',
                 'result': result,
-                'execution_time': time.time() - self.running_tasks[task['id']]['start_time']
+                'execution_time': time.time() - start_time
             }
-            
+
         except Exception as e:
             logger.error(f"Task {task['id']} failed: {e}")
             return {
                 'status': 'failed',
                 'error': str(e),
-                'execution_time': time.time() - self.running_tasks[task['id']]['start_time']
+                'execution_time': time.time() - start_time
             }
     
     def _handle_compute_task(self, payload: Dict[str, Any]) -> Any:
@@ -414,9 +416,12 @@ class WorkerService:
     def _monitor_task(self, task_id: str):
         """Monitor task execution and report completion"""
         # Wait for task to complete
-        while task_id in self.executor.running_tasks:
+        while True:
+            with self.executor.lock:
+                if task_id not in self.executor.running_tasks:
+                    break
             time.sleep(1)
-        
+
         # Task completed - need to get result from executor
         # In a real implementation, we'd store results properly
         self._update_task_status(task_id, 'completed', result={'status': 'done'})
