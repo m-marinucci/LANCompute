@@ -61,7 +61,12 @@ env/
 *.swp
 *.swo
 *~
-.DS_Store
+# Hidden files/directories (OS and IDE generated)
+.*
+# Exceptions - keep these tracked
+!.gitignore
+!.github/
+!.claude/
 
 # mypy
 .mypy_cache/
@@ -86,3 +91,6 @@ config.local.yaml
 
 # Claude settings (keep the main settings but ignore local overrides)
 .claude/settings.local.json
+
+# Feature specs (local planning documents)
+specs/

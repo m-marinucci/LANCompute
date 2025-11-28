@@ -144,10 +144,24 @@ The project includes comprehensive agent documentation in `.claude/agents/` for 
 
 ## Examples
 
-### Find LLM Services on Network
+### Discover LLM and Screen Sharing Services on the Network
+
+Run the network scanner to find LLM services and screen sharing endpoints:
 
 ```bash
-python network_scanner.py
+python -m lancompute.network_scanner
+```
+
+Discover macOS screen sharing (VNC) services via mDNS/Bonjour:
+
+```bash
+python -m lancompute.network_scanner --discover
+```
+
+Diagnose connectivity to a specific host (ping, VNC, ARD, SSH):
+
+```bash
+python -m lancompute.network_scanner --diagnose <hostname-or-ip>
 ```
 
 ### Submit High-Priority ML Task
@@ -215,7 +229,7 @@ See agent documentation for architecture guidelines:
 
 ## License
 
-[Add your license here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Roadmap
 
