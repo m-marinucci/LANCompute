@@ -1028,7 +1028,6 @@ wheels = [
 
 [[package]]
 name = "lancompute"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "psutil" },
@@ -1084,7 +1083,7 @@ requires-dist = [
     { name = "torch", marker = "extra == 'ml'", specifier = ">=1.12.0" },
     { name = "zeroconf", specifier = ">=0.100.0" },
 ]
-provides-extras = ["ml", "test", "dev"]
+provides-extras = ["dev", "ml", "test"]
 
 [[package]]
 name = "libclang"
