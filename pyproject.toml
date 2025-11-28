@@ -4,6 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lancompute"
+license = {text = "MIT"}
 dynamic = ["version"]
 description = "LANCompute - Distributed computing platform for LLM workloads"
 readme = "README.md"
