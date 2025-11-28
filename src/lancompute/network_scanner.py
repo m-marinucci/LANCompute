@@ -15,9 +15,8 @@ import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List, Optional, Sequence, TypedDict, Union
-
 from ipaddress import IPv4Address, IPv6Address
+from typing import Dict, List, Optional, Sequence, TypedDict, Union
 
 from .mdns_discovery import (
     DiscoveredService,
@@ -75,7 +74,7 @@ def get_local_network() -> str:
         # Get local IP address
         hostname = socket.gethostname()
         local_ip = socket.gethostbyname(hostname)
-        
+
         # For macOS/Linux, get more accurate network info
         if platform.system() != "Windows":
             if platform.system() == "Darwin":
@@ -83,23 +82,23 @@ def get_local_network() -> str:
             else:
                 cmd = ["ip", "addr"]
             result = subprocess.run(cmd, capture_output=True, text=True)
-            
+
             # Simple heuristic: find IP that starts with common private ranges
-            for line in result.stdout.split('\n'):
-                if 'inet ' in line and not '127.0.0.1' in line:
+            for line in result.stdout.split("\n"):
+                if "inet " in line and "127.0.0.1" not in line:
                     parts = line.strip().split()
                     for part in parts:
-                        if '.' in part and not 'inet' in part:
+                        if "." in part and "inet" not in part:
                             try:
-                                ip = part.split('/')[0]
-                                if ip.startswith(('192.168.', '10.', '172.')):
+                                ip = part.split("/")[0]
+                                if ip.startswith(("192.168.", "10.", "172.")):
                                     local_ip = ip
                                     break
                             except Exception:
                                 continue
-        
+
         # Convert to network subnet
-        ip_parts = local_ip.split('.')
+        ip_parts = local_ip.split(".")
         network = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"
         return network
     except Exception as e:
@@ -112,7 +111,9 @@ def ping_host(ip: str) -> bool:
     try:
         param = "-n" if platform.system().lower() == "windows" else "-c"
         command = ["ping", param, "1", "-W", "1", str(ip)]
-        result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        result = subprocess.run(
+            command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
         return result.returncode == 0
     except Exception:
         return False
@@ -175,11 +176,11 @@ def scan_host(
         "services": {},
         "identified_services": [],
     }
-    
+
     # First check if host is alive
     if ping_host(ip):
         host_info["alive"] = True
-        
+
         # Scan specified ports
         for port in ports:
             result = scan_port(ip, port)
@@ -191,7 +192,7 @@ def scan_host(
                     host_info["services"][port] = result[:100]  # Limit banner length
                 # If result is just "Open", banner retrieval already attempted in scan_port
                 # No need for redundant connection
-    
+
     return host_info
 
 
@@ -323,9 +324,7 @@ def diagnose_host(target: str) -> DiagnosticReport:
 
     report["ports"] = ports
 
-    vnc_open = any(
-        p["name"] in ("VNC", "ARD") and p["status"] == "open" for p in ports
-    )
+    vnc_open = any(p["name"] in ("VNC", "ARD") and p["status"] == "open" for p in ports)
     ssh_open = any(p["name"] == "SSH" and p["status"] == "open" for p in ports)
 
     if report["resolution_error"]:
@@ -625,7 +624,9 @@ def main() -> None:
 
         with ThreadPoolExecutor(max_workers=args.threads) as executor:
             # Submit all scanning tasks
-            future_to_ip = {executor.submit(scan_host, ip, ports): ip for ip in net.hosts()}
+            future_to_ip = {
+                executor.submit(scan_host, ip, ports): ip for ip in net.hosts()
+            }
 
             # Process results as they complete
             for future in as_completed(future_to_ip):
@@ -647,7 +648,10 @@ def main() -> None:
                         for port, banner in result["services"].items():
                             print(f"  Port {port} banner: {banner}")
 
-                    if "identified_services" in result and result["identified_services"]:
+                    if (
+                        "identified_services" in result
+                        and result["identified_services"]
+                    ):
                         for service in result["identified_services"]:
                             if service == "VNC/Screen Sharing":
                                 print("  [VNC] VNC/Screen Sharing on port 5900")

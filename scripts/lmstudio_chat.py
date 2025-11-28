@@ -146,7 +146,10 @@ def main() -> int:
     if not prompt:
         prompt = sys.stdin.read().strip()
         if not prompt:
-            print("Error: no prompt provided (use --prompt or pipe input)", file=sys.stderr)
+            print(
+                "Error: no prompt provided (use --prompt or pipe input)",
+                file=sys.stderr,
+            )
             return 2
 
     return chat(

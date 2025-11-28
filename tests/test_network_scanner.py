@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from src.lancompute.network_scanner import (
     diagnose_host,
     get_local_network,
@@ -72,9 +70,7 @@ class TestNetworkScanner:
     def test_scan_host_basic(self) -> None:
         """Test basic host scanning functionality."""
         with patch("src.lancompute.network_scanner.ping_host", return_value=True):
-            with patch(
-                "src.lancompute.network_scanner.scan_port", return_value=None
-            ):
+            with patch("src.lancompute.network_scanner.scan_port", return_value=None):
                 result = scan_host("127.0.0.1", [80, 8080])
 
                 assert result["ip"] == "127.0.0.1"
@@ -88,9 +84,7 @@ class TestDiagnoseHost:
 
     def test_diagnose_host_reachable_vnc_open(self) -> None:
         """If VNC is open and ping succeeds, status should be reachable."""
-        with patch(
-            "src.lancompute.network_scanner.subprocess.run"
-        ) as mock_run, patch(
+        with patch("src.lancompute.network_scanner.subprocess.run") as mock_run, patch(
             "src.lancompute.network_scanner._check_port"
         ) as mock_check:
             # Ping success
@@ -126,28 +120,28 @@ class TestDiagnoseHost:
         assert report["overall_status"] == "reachable"
         assert report["resolved_ip"] == "127.0.0.1"
         assert report["ping"]["success"] is True
-        assert any(p["name"] == "VNC" and p["status"] == "open" for p in report["ports"])
+        assert any(
+            p["name"] == "VNC" and p["status"] == "open" for p in report["ports"]
+        )
 
     def test_diagnose_host_unreachable(self) -> None:
         """If ping fails, overall status should be unreachable and ports skipped."""
-        with patch(
-            "src.lancompute.network_scanner.subprocess.run"
-        ) as mock_run, patch(
+        with patch("src.lancompute.network_scanner.subprocess.run") as mock_run, patch(
             "src.lancompute.network_scanner._check_port"
-        ) as mock_check:
+        ):
             mock_run.return_value.returncode = 1  # host unreachable
 
             report = diagnose_host("127.0.0.1")
 
         assert report["overall_status"] == "unreachable"
         assert all(p["status"] == "skipped" for p in report["ports"])
-        assert any("Verify the host is powered on" in r for r in report["recommendations"])
+        assert any(
+            "Verify the host is powered on" in r for r in report["recommendations"]
+        )
 
     def test_diagnose_host_partial_connectivity(self) -> None:
         """If VNC/ARD are closed but SSH is open, status should be partial."""
-        with patch(
-            "src.lancompute.network_scanner.subprocess.run"
-        ) as mock_run, patch(
+        with patch("src.lancompute.network_scanner.subprocess.run") as mock_run, patch(
             "src.lancompute.network_scanner._check_port"
         ) as mock_check:
             mock_run.return_value.returncode = 0  # ping success
@@ -179,11 +173,15 @@ class TestDiagnoseHost:
             report = diagnose_host("127.0.0.1")
 
         assert report["overall_status"] == "partial"
-        assert any(p["name"] == "SSH" and p["status"] == "open" for p in report["ports"])
+        assert any(
+            p["name"] == "SSH" and p["status"] == "open" for p in report["ports"]
+        )
 
     def test_diagnose_host_resolution_failure(self) -> None:
         """Invalid hostname should set resolution_error and skip further checks."""
-        with patch("src.lancompute.network_scanner.ipaddress.ip_address") as mock_ip, patch(
+        with patch(
+            "src.lancompute.network_scanner.ipaddress.ip_address"
+        ) as mock_ip, patch(
             "src.lancompute.network_scanner.socket.gethostbyname"
         ) as mock_gethost:
             mock_ip.side_effect = ValueError("not an IP")

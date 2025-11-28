@@ -1,4 +1,5 @@
 """Integration test for LM Studio resources running on the local network."""
+
 from __future__ import annotations
 
 import os
@@ -7,6 +8,7 @@ from typing import Iterable, Optional
 
 import pytest
 import requests
+
 
 def _load_dotenv_into_environ() -> None:
     """Load simple KEY=VALUE pairs from project .env into os.environ if present.
@@ -55,7 +57,9 @@ def _choose_model(models: Iterable[dict]) -> Optional[str]:
 
     if SMALL_MODEL_OVERRIDE:
         for model_id in normalized:
-            if model_id == SMALL_MODEL_OVERRIDE or model_id.endswith(SMALL_MODEL_OVERRIDE):
+            if model_id == SMALL_MODEL_OVERRIDE or model_id.endswith(
+                SMALL_MODEL_OVERRIDE
+            ):
                 return model_id
         return None
 
@@ -83,7 +87,9 @@ def test_lmstudio_small_model_chat_completion():
     payload = models_response.json() if models_response.content else {}
     models = payload.get("data", []) if isinstance(payload, dict) else []
     if not models:
-        pytest.skip("LM Studio reported no models; ensure at least one model is available.")
+        pytest.skip(
+            "LM Studio reported no models; ensure at least one model is available."
+        )
 
     model_id = _choose_model(models)
     if not model_id:
@@ -94,7 +100,10 @@ def test_lmstudio_small_model_chat_completion():
     completion_body = {
         "model": model_id,
         "messages": [
-            {"role": "system", "content": "You are a test harness verifying LM Studio."},
+            {
+                "role": "system",
+                "content": "You are a test harness verifying LM Studio.",
+            },
             {"role": "user", "content": PROMPT},
         ],
         "max_tokens": 32,
@@ -108,15 +117,15 @@ def test_lmstudio_small_model_chat_completion():
     except requests.exceptions.RequestException as exc:
         pytest.fail(f"Chat completion request failed for model {model_id}: {exc}")
 
-    assert (
-        completion_response.status_code == 200
-    ), (
+    assert completion_response.status_code == 200, (
         "Chat completion HTTP error: "
         f"{completion_response.status_code} {completion_response.text}"
     )
 
     data = completion_response.json() if completion_response.content else {}
-    assert isinstance(data, dict), "LM Studio completion response must be a JSON object."
+    assert isinstance(
+        data, dict
+    ), "LM Studio completion response must be a JSON object."
     assert data.get("choices"), "LM Studio completion response is missing choices."
 
     first_choice = data["choices"][0]

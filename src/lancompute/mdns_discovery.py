@@ -9,7 +9,6 @@ from typing import List, Optional, TypedDict
 
 from zeroconf import ServiceBrowser, ServiceInfo, ServiceListener, Zeroconf
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -144,4 +143,3 @@ def discover_screen_sharing_services(
         except Exception:
             # Best-effort cleanup only.
             logger.debug("Failed to close Zeroconf instance", exc_info=True)
-

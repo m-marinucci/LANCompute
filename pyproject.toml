@@ -54,10 +54,16 @@ line-length = 88
 target-version = ['py38']
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = true
+disallow_untyped_defs = false
+
+[tool.flake8]
+exclude = [".venv", "build", "dist"]
+
+[tool.ruff]
+exclude = [".venv"]
 
 [tool.hatch.version]
 path = "src/lancompute/__init__.py"

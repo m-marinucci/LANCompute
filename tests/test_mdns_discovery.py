@@ -60,9 +60,9 @@ class TestDiscoverScreenSharingServices:
             def close(self) -> None:
                 self.closed = True
 
-        with patch(
-            "src.lancompute.mdns_discovery.Zeroconf", DummyZeroconf
-        ), patch("src.lancompute.mdns_discovery.ServiceBrowser", MagicMock()):
+        with patch("src.lancompute.mdns_discovery.Zeroconf", DummyZeroconf), patch(
+            "src.lancompute.mdns_discovery.ServiceBrowser", MagicMock()
+        ):
             result = discover_screen_sharing_services(timeout=0.0)
 
         assert result["error"] is None
@@ -85,4 +85,3 @@ class TestDiscoverScreenSharingServices:
         result = discover_screen_sharing_services(timeout=0.1)
         assert "services" in result
         assert "duration_seconds" in result
-
