@@ -53,7 +53,7 @@ class MacOptimizer:
                 text=True
             )
             return result.stdout.strip() == '1'
-        except:
+        except (subprocess.SubprocessError, OSError, ValueError):
             return False
     
     def _detect_unified_memory(self) -> Dict[str, Any]:
@@ -210,7 +210,7 @@ class MacOptimizer:
                         text=True
                     )
                     cpu_info['performance_cores'] = int(result.stdout.strip())
-                except:
+                except (subprocess.SubprocessError, OSError, ValueError):
                     # Estimate based on total cores
                     cpu_info['performance_cores'] = cpu_info['physical_cores'] // 2
                     cpu_info['efficiency_cores'] = cpu_info['physical_cores'] - cpu_info['performance_cores']
@@ -224,7 +224,7 @@ class MacOptimizer:
                 )
                 freq_hz = int(result.stdout.strip())
                 cpu_info['cpu_frequency_ghz'] = freq_hz / 1e9
-            except:
+            except (subprocess.SubprocessError, OSError, ValueError):
                 cpu_info['cpu_frequency_ghz'] = 3.2  # Default estimate
                 
         except Exception as e:
@@ -313,9 +313,9 @@ class MacOptimizer:
                     return size / 1024
                 else:
                     return size
-        except:
+        except (subprocess.SubprocessError, OSError, ValueError, AttributeError):
             pass
-        
+
         return 0.0
     
     def get_optimization_recommendations(self) -> Dict[str, Any]:

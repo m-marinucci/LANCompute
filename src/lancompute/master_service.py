@@ -9,7 +9,7 @@ import json
 import logging
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass, asdict
 from enum import Enum
@@ -261,6 +261,15 @@ class NodeManager:
                 self.nodes[node_id].current_tasks.add(task_id)
                 return True
             return False
+
+    def get_node_if_available(self, node_id: str, max_tasks: int = 2) -> Optional[Node]:
+        """Get node if it can accept more tasks (atomic check-and-return)"""
+        with self.lock:
+            if node_id in self.nodes:
+                node = self.nodes[node_id]
+                if node.status == NodeStatus.ONLINE and len(node.current_tasks) < max_tasks:
+                    return node
+            return None
     
     def complete_task_on_node(self, node_id: str, task_id: str, success: bool) -> bool:
         """Mark task as completed on node"""
@@ -284,6 +293,21 @@ class NodeManager:
         """Get all nodes"""
         with self.lock:
             return list(self.nodes.values())
+
+
+def serialize_dataclass(obj):
+    """Serialize dataclass with enum values to JSON-compatible dict"""
+    if hasattr(obj, '__dataclass_fields__'):
+        result = {}
+        for key, value in asdict(obj).items():
+            if isinstance(value, Enum):
+                result[key] = value.value
+            elif isinstance(value, set):
+                result[key] = list(value)
+            else:
+                result[key] = value
+        return result
+    return obj
 
 
 class MasterHTTPHandler(BaseHTTPRequestHandler):
@@ -337,31 +361,27 @@ class MasterHTTPHandler(BaseHTTPRequestHandler):
             'uptime': time.time() - self.server.master.start_time,
             'total_tasks': len(self.server.master.task_queue.tasks),
             'total_nodes': len(self.server.master.node_manager.nodes),
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }
         self._send_json_response(status)
     
     def _handle_list_tasks(self):
         """List all tasks"""
         tasks = self.server.master.task_queue.get_all_tasks()
-        task_list = [asdict(task) for task in tasks]
+        task_list = [serialize_dataclass(task) for task in tasks]
         self._send_json_response({'tasks': task_list})
     
     def _handle_list_nodes(self):
         """List all nodes"""
         nodes = self.server.master.node_manager.get_all_nodes()
-        node_list = []
-        for node in nodes:
-            node_dict = asdict(node)
-            node_dict['current_tasks'] = list(node.current_tasks)
-            node_list.append(node_dict)
+        node_list = [serialize_dataclass(node) for node in nodes]
         self._send_json_response({'nodes': node_list})
     
     def _handle_get_task(self, task_id: str):
         """Get specific task details"""
         task = self.server.master.task_queue.get_task(task_id)
         if task:
-            self._send_json_response(asdict(task))
+            self._send_json_response(serialize_dataclass(task))
         else:
             self.send_error(404, "Task not found")
     
@@ -401,18 +421,18 @@ class MasterHTTPHandler(BaseHTTPRequestHandler):
         
         success = self.server.master.node_manager.update_heartbeat(node_id)
         if success:
-            # Check for tasks for this node
-            node = self.server.master.node_manager.get_node(node_id)
-            if node and len(node.current_tasks) < 2:
+            # Check for tasks for this node (atomic check-and-get)
+            node = self.server.master.node_manager.get_node_if_available(node_id)
+            if node:
                 task = self.server.master.task_queue.get_task_for_node(node)
                 if task:
                     self.server.master.node_manager.assign_task_to_node(node_id, task.id)
                     self._send_json_response({
                         'status': 'ok',
-                        'task': asdict(task)
+                        'task': serialize_dataclass(task)
                     })
                     return
-            
+
             self._send_json_response({'status': 'ok'})
         else:
             self.send_error(404, "Node not found")

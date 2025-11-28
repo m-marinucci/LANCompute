@@ -36,7 +36,7 @@ class TestPlatformDetector:
     
     def test_detect_gpu_no_gpu(self):
         """Test GPU detection when no GPU present."""
-        with patch('subprocess.run', side_effect=Exception("Command not found")):
+        with patch('subprocess.run', side_effect=FileNotFoundError("Command not found")):
             result = PlatformDetector._detect_gpu()
             assert result is False
 

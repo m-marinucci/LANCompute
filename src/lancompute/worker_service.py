@@ -25,7 +25,7 @@ import importlib.util
 # Try to import mac_optimizer if on macOS
 if platform.system() == 'Darwin':
     try:
-        from mac_optimizer import MacOptimizer
+        from .mac_optimizer import MacOptimizer
     except ImportError:
         MacOptimizer = None
 else:
@@ -112,16 +112,16 @@ class PlatformDetector:
         try:
             subprocess.run(['nvidia-smi'], capture_output=True, check=True)
             return True
-        except:
+        except (subprocess.SubprocessError, OSError, FileNotFoundError):
             pass
-        
+
         # Check for AMD GPU (Linux)
         if platform.system() == 'Linux':
             try:
                 result = subprocess.run(['lspci'], capture_output=True, text=True)
                 if 'VGA' in result.stdout and ('AMD' in result.stdout or 'ATI' in result.stdout):
                     return True
-            except:
+            except (subprocess.SubprocessError, OSError, FileNotFoundError):
                 pass
         
         return False
@@ -141,6 +141,7 @@ class TaskExecutor:
         self.capabilities = capabilities
         self.executor = self._create_executor()
         self.running_tasks = {}
+        self.completed_results = {}  # Store completed task results
         self.lock = threading.Lock()
     
     def _create_executor(self):
@@ -162,34 +163,36 @@ class TaskExecutor:
     def execute_task(self, task: Dict[str, Any]) -> None:
         """Execute a task asynchronously"""
         task_id = task['id']
-        
+        start_time = time.time()
+
         with self.lock:
             if task_id in self.running_tasks:
                 logger.warning(f"Task {task_id} already running")
                 return
-            
+
             self.running_tasks[task_id] = {
                 'task': task,
                 'future': None,
-                'start_time': time.time()
+                'start_time': start_time
             }
-        
+
         # Submit task to executor
-        future = self.executor.submit(self._run_task, task)
-        
+        future = self.executor.submit(self._run_task, task, start_time)
+
         with self.lock:
-            self.running_tasks[task_id]['future'] = future
-        
+            if task_id in self.running_tasks:  # Check still exists
+                self.running_tasks[task_id]['future'] = future
+
         # Add callback for completion
         future.add_done_callback(lambda f: self._task_completed(task_id, f))
     
-    def _run_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
+    def _run_task(self, task: Dict[str, Any], start_time: float) -> Dict[str, Any]:
         """Run a single task"""
         task_type = task.get('type', 'unknown')
         payload = task.get('payload', {})
-        
+
         logger.info(f"Executing task {task['id']} of type {task_type}")
-        
+
         try:
             # Route to appropriate handler based on task type
             if task_type == 'compute':
@@ -202,19 +205,19 @@ class TaskExecutor:
                 result = self._handle_test_task(payload)
             else:
                 raise ValueError(f"Unknown task type: {task_type}")
-            
+
             return {
                 'status': 'completed',
                 'result': result,
-                'execution_time': time.time() - self.running_tasks[task['id']]['start_time']
+                'execution_time': time.time() - start_time
             }
-            
+
         except Exception as e:
             logger.error(f"Task {task['id']} failed: {e}")
             return {
                 'status': 'failed',
                 'error': str(e),
-                'execution_time': time.time() - self.running_tasks[task['id']]['start_time']
+                'execution_time': time.time() - start_time
             }
     
     def _handle_compute_task(self, payload: Dict[str, Any]) -> Any:
@@ -266,16 +269,25 @@ class TaskExecutor:
     
     def _task_completed(self, task_id: str, future):
         """Handle task completion"""
-        with self.lock:
-            if task_id in self.running_tasks:
-                del self.running_tasks[task_id]
-        
+        # Get result from future
         try:
             result = future.result()
             logger.info(f"Task {task_id} completed with status: {result.get('status')}")
         except Exception as e:
             logger.error(f"Task {task_id} failed with exception: {e}")
+            result = {'status': 'failed', 'error': str(e)}
+
+        # Store result and clean up
+        with self.lock:
+            self.completed_results[task_id] = result
+            if task_id in self.running_tasks:
+                del self.running_tasks[task_id]
     
+    def get_completed_result(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """Get and remove completed task result"""
+        with self.lock:
+            return self.completed_results.pop(task_id, None)
+
     def shutdown(self):
         """Shutdown the executor"""
         self.executor.shutdown(wait=True)
@@ -414,12 +426,24 @@ class WorkerService:
     def _monitor_task(self, task_id: str):
         """Monitor task execution and report completion"""
         # Wait for task to complete
-        while task_id in self.executor.running_tasks:
+        while True:
+            with self.executor.lock:
+                if task_id not in self.executor.running_tasks:
+                    break
             time.sleep(1)
-        
-        # Task completed - need to get result from executor
-        # In a real implementation, we'd store results properly
-        self._update_task_status(task_id, 'completed', result={'status': 'done'})
+
+        # Get actual result from executor
+        task_result = self.executor.get_completed_result(task_id)
+
+        if task_result:
+            status = task_result.get('status', 'completed')
+            result = task_result.get('result')
+            error = task_result.get('error')
+            self._update_task_status(task_id, status, result=result, error=error)
+        else:
+            # Fallback if result not found (shouldn't happen)
+            logger.warning(f"No result found for completed task {task_id}")
+            self._update_task_status(task_id, 'completed', result={'status': 'unknown'})
     
     def _update_task_status(self, task_id: str, status: str, 
                            result: Any = None, error: str = None):
