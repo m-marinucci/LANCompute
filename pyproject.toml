@@ -20,10 +20,16 @@ dependencies = [
 [project.scripts]
 lancompute = "lancompute.controller.cli:main"
 lancompute-worker = "lancompute.controller.worker_daemon:main"
+lancompute-benchmark = "lancompute.benchmark.cli:main"
 
 [project.optional-dependencies]
 controller = [
     "psycopg2-binary>=2.9.0",
+]
+benchmark = [
+    "psycopg2-binary>=2.9.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
 ]
 ml = [
     "numpy>=1.21.0",

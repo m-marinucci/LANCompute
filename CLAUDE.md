@@ -205,6 +205,61 @@ Schema is in `sql/init_schema.sql`. Tables:
 - `lancompute.job_logs` - Execution log entries
 - `lancompute.notifications` - Notification audit log
 
+## Benchmark Module
+
+GPU performance regression testing with CIFAR-10 benchmark:
+
+### Components
+
+| Module | Purpose |
+|--------|---------|
+| `benchmark/cifar10.py` | CIFAR-10 training benchmark |
+| `benchmark/db.py` | Database operations for benchmark results |
+| `benchmark/cli.py` | CLI for running benchmarks and viewing results |
+
+### CLI Commands
+
+```bash
+# Install with benchmark dependencies (includes PyTorch)
+uv pip install -e ".[benchmark]"
+
+# Initialize benchmark schema
+lancompute-benchmark init-db
+
+# Run benchmark on GPU worker
+lancompute-benchmark run --epochs 5 --batch-size 128
+
+# Set baseline (first run or after hardware change)
+lancompute-benchmark run --set-baseline
+
+# View current baseline
+lancompute-benchmark baseline gpu-worker-01
+
+# Set baseline manually
+lancompute-benchmark baseline gpu-worker-01 --accuracy 72.56 --throughput 8929
+
+# List recent runs
+lancompute-benchmark list
+
+# Check for regressions
+lancompute-benchmark regressions
+
+# View statistics
+lancompute-benchmark stats
+```
+
+### Regression Detection
+
+- Default threshold: 10% drop in accuracy or throughput
+- Automatic Gotify notifications on regression
+- Historical data stored in PostgreSQL for trend analysis
+
+### Database Tables
+
+Schema in `sql/benchmark_schema.sql`:
+- `lancompute.benchmark_runs` - Benchmark execution results
+- `lancompute.benchmark_baselines` - Reference values for regression detection
+
 ## Specifications
 
 Feature and chore specs are in `specs/` directory:
