@@ -123,12 +123,12 @@ BEGIN
     -- Check for regression (negative delta beyond threshold)
     IF v_accuracy_delta < -p_threshold_percent THEN
         v_is_regression := TRUE;
-        v_reason := v_reason || format('Accuracy dropped %.1f%% (threshold: %.1f%%). ', -v_accuracy_delta, p_threshold_percent);
+        v_reason := v_reason || 'Accuracy dropped ' || round(-v_accuracy_delta::numeric, 1) || '% (threshold: ' || round(p_threshold_percent::numeric, 1) || '%). ';
     END IF;
 
     IF v_throughput_delta < -p_threshold_percent THEN
         v_is_regression := TRUE;
-        v_reason := v_reason || format('Throughput dropped %.1f%% (threshold: %.1f%%). ', -v_throughput_delta, p_threshold_percent);
+        v_reason := v_reason || 'Throughput dropped ' || round(-v_throughput_delta::numeric, 1) || '% (threshold: ' || round(p_threshold_percent::numeric, 1) || '%). ';
     END IF;
 
     -- Update the run record

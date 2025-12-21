@@ -37,6 +37,8 @@ class BenchmarkRun:
     regression_reason: Optional[str] = None
     accuracy_delta_percent: Optional[float] = None
     throughput_delta_percent: Optional[float] = None
+    baseline_accuracy: Optional[float] = None
+    baseline_samples_per_second: Optional[float] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     error: Optional[str] = None
@@ -61,6 +63,8 @@ class BenchmarkRun:
             regression_reason=row.get("regression_reason"),
             accuracy_delta_percent=row.get("accuracy_delta_percent"),
             throughput_delta_percent=row.get("throughput_delta_percent"),
+            baseline_accuracy=row.get("baseline_accuracy"),
+            baseline_samples_per_second=row.get("baseline_samples_per_second"),
             started_at=row.get("started_at"),
             completed_at=row.get("completed_at"),
             error=row.get("error"),
@@ -213,12 +217,12 @@ class BenchmarkDB:
         """Check if a benchmark run shows regression."""
         with self._cursor() as cur:
             cur.execute(
-                "SELECT lancompute.check_benchmark_regression(%s, %s)",
+                "SELECT lancompute.check_benchmark_regression(%s, %s) AS is_regression",
                 (run_id, threshold_percent),
             )
             result = cur.fetchone()
             self._conn.commit()
-            return result[0] if result else False
+            return result["is_regression"] if result else False
 
     def get_run(self, run_id: int) -> Optional[BenchmarkRun]:
         """Get a benchmark run by ID."""

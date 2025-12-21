@@ -179,7 +179,12 @@ def run(
                     click.secho("Baseline updated.", fg="green")
 
             except Exception as e:
-                db.fail_benchmark_run(run_id, str(e))
+                # Rollback failed transaction before updating status
+                try:
+                    db._conn.rollback()
+                    db.fail_benchmark_run(run_id, str(e))
+                except Exception:
+                    pass  # Best effort to record failure
                 if notifier:
                     notifier.send(
                         title="GPU Benchmark Failed",
