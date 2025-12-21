@@ -14,9 +14,17 @@ dependencies = [
     "requests>=2.28.0",
     "pyyaml>=6.0",
     "zeroconf>=0.100.0",
+    "click>=8.0.0",
 ]
 
+[project.scripts]
+lancompute = "lancompute.controller.cli:main"
+lancompute-worker = "lancompute.controller.worker_daemon:main"
+
 [project.optional-dependencies]
+controller = [
+    "psycopg2-binary>=2.9.0",
+]
 ml = [
     "numpy>=1.21.0",
     "torch>=1.12.0",
